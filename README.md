@@ -7,7 +7,18 @@ Skynet is a multi-user Lua framework supporting the actor model, often used in g
 The community is friendly and almost all contributors can speak English, so English speakers are welcome to ask questions in [Discussion](https://github.com/cloudwu/skynet/discussions), or submit issues in English.
 
 ## Build
+### 1. xmake
+看起来xmake是多了几十行，但是可读性提升了。
 
+```bash
+git clone https://github.com/cloudwu/skynet.git
+cd skynet
+xmake # xmake会自动判断平台
+```
+
+尽管有些变量是不需要写的，但是为了和原 `Makefile` 对比，还是写上了。
+
+### 2. make
 For Linux, install autoconf first for jemalloc:
 
 ```

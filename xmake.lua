@@ -68,17 +68,21 @@ end)
 namespace ("third_part", function ()
     target("jemalloc", function()
         set_kind("phony")
-        set_default(false)
         before_build(function (target) 
             if not os.exists("3rd/jemalloc/Makefile") then
                 os.exec("git submodule update --init")
-                os.cd("3rd")
-                os.cd("jemalloc")
-                os.exec("./autogen.sh --with-jemalloc-prefix=je_ --enable-prof")
-                -- make CC=gcc
-                os.exec(MAKE .. " CC=" .. CC)
+
             end
         end)
+
+        on_build(function (target) 
+            os.cd("3rd")
+            os.cd("jemalloc")
+            os.exec("./autogen.sh --with-jemalloc-prefix=je_ --enable-prof")
+            -- make CC=gcc
+            os.exec(MAKE .. " CC=" .. CC)
+        end)
+        
         add_linkdirs("3rd/jemalloc/lib", {public = true})
         add_links("jemalloc_pic", {public = true})
         add_includedirs(JEMALLOC_INC, {public = true})
@@ -86,8 +90,7 @@ namespace ("third_part", function ()
 
     target("lua", function()
         set_kind("phony")
-        set_default(false)
-        before_build(function (target) 
+        on_build(function (target) 
             if not os.exists(LUA_STATICLIB) then
                 os.cd("3rd")
                 os.cd("lua")
@@ -177,18 +180,41 @@ end)
 
 task("cleanall", function () 
     on_run(function ()
-        os.exec("xmake clean")
+        -- clean 3rd
         os.cd("3rd")
         local third_part_dirs = os.cd("jemalloc")
-        os.exec(MAKE .. " clean")
-        os.rm("Makefile")
+        -- clean jemalloc
+        if os.exists("3rd/jemalloc/Makefile") then
+            os.exec(MAKE .. " clean")
+            os.rm("Makefile")
+        end
+        -- clean lua
         os.cd(third_part_dirs)
         os.cd("lua")
         os.exec(MAKE .. " clean")
+
+        -- clean project
+        os.cd(os.projectdir())
+        os.exec("xmake clean")
+        os.rm("luaclib")
+        os.rm("cservice")
     end)
 
     set_menu {
         usage = "xmake cleanall",
         description = "clean all"
+    }
+end)
+
+task("linux", function () 
+    on_run(function ()
+        os.exec("xmake -b third_part::jemalloc")
+        os.exec("xmake -b third_part::lua")
+        os.exec("xmake")
+    end)
+
+    set_menu {
+        usage = "xmake linux",
+        description = "make linux"
     }
 end)

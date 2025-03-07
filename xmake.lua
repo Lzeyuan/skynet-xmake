@@ -67,20 +67,17 @@ end)
 
 namespace ("third_part", function ()
     target("jemalloc", function()
-        set_kind("phony")
+        set_kind("object")
+
         before_build(function (target) 
             if not os.exists("3rd/jemalloc/Makefile") then
                 os.exec("git submodule update --init")
-
+                os.cd("3rd")
+                os.cd("jemalloc")
+                os.exec("./autogen.sh --with-jemalloc-prefix=je_ --enable-prof")
+                -- make CC=gcc
+                os.exec(MAKE .. " CC=" .. CC)
             end
-        end)
-
-        on_build(function (target) 
-            os.cd("3rd")
-            os.cd("jemalloc")
-            os.exec("./autogen.sh --with-jemalloc-prefix=je_ --enable-prof")
-            -- make CC=gcc
-            os.exec(MAKE .. " CC=" .. CC)
         end)
         
         add_linkdirs("3rd/jemalloc/lib", {public = true})
@@ -181,17 +178,23 @@ end)
 task("cleanall", function () 
     on_run(function ()
         -- clean 3rd
+        local third_part_dirs = os.projectdir() .. "/3rd"
         os.cd("3rd")
-        local third_part_dirs = os.cd("jemalloc")
-        -- clean jemalloc
-        if os.exists("3rd/jemalloc/Makefile") then
+        -- clean 3rd/jemalloc
+        print("===== clean jemalloc =====")
+        if os.exists("jemalloc/Makefile") then
+            os.cd("jemalloc")
             os.exec(MAKE .. " clean")
             os.rm("Makefile")
         end
-        -- clean lua
+        print("===== end clean jemalloc =====")
+
+        -- clean 3rd/lua
+        print("===== clean lua =====")
         os.cd(third_part_dirs)
         os.cd("lua")
         os.exec(MAKE .. " clean")
+        print("===== end clean lua =====")
 
         -- clean project
         os.cd(os.projectdir())
@@ -206,8 +209,9 @@ task("cleanall", function ()
     }
 end)
 
-task("linux", function () 
+task("skynet", function () 
     on_run(function ()
+        os.exec("git submodule update --init")
         os.exec("xmake -b third_part::jemalloc")
         os.exec("xmake -b third_part::lua")
         os.exec("xmake")

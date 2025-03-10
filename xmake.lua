@@ -1,4 +1,5 @@
-add_rules("mode.debug", "mode.release")
+-- 原项目依赖assert，所以只有debug模式
+add_rules("mode.debug")
 
 -- >>> platform >>>
 local SKYNET_LIBS = {"pthread", "m"}
@@ -29,7 +30,6 @@ local SKYNET_DEFINES = ""
 if is_plat("macosx") then
     SKYNET_DEFINES = "-DNOUSE_JEMALLOC"
 end
-
 -- <<< platform <<<
 
 local PLAT = "linux"
@@ -42,6 +42,9 @@ local LUA_INC = "3rd/lua"
 local LUA_STATICLIB = "3rd/lua/liblua.a"
 local JEMALLOC_INC = "3rd/jemalloc/include/jemalloc"
 
+-- 这是个 c 项目
+set_toolchains("gcc")
+
 -- CFLAGS = -g -O2 -Wall -I$(LUA_INC) $(MYCFLAGS)
 set_symbols("debug")
 set_optimize("faster")
@@ -51,6 +54,11 @@ add_cflags("")
 
 target("skynet-main", function()
     set_kind("binary")
+    -- xmake默认并行构建target，导致 jemalloc 还未编译完成就直接编译 skynet-main，导致编译失败
+    -- 感谢群友 Gracious 提供的方案
+    -- https://github.com/xmake-io/xmake/discussions/2500
+    -- https://xmake.io/#/zh-cn/guide/build_policies?id=buildacross_targets_in_parallel
+    set_policy("build.across_targets_in_parallel", false)
     add_includedirs("skynet-src")
     add_syslinks(SKYNET_LIBS)
     add_ldflags(EXPORT, SKYNET_DEFINES)
@@ -205,20 +213,6 @@ task("cleanall", function ()
 
     set_menu {
         usage = "xmake cleanall",
-        description = "clean all"
-    }
-end)
-
-task("skynet", function () 
-    on_run(function ()
-        os.exec("git submodule update --init")
-        os.exec("xmake -b third_part::jemalloc")
-        os.exec("xmake -b third_part::lua")
-        os.exec("xmake")
-    end)
-
-    set_menu {
-        usage = "xmake linux",
-        description = "make linux"
+        description = "清理所有生成的文件和第三方库生成文件",
     }
 end)

@@ -8,15 +8,16 @@ The community is friendly and almost all contributors can speak English, so Engl
 
 ## Build
 ### 1. xmake
-看起来xmake是多了几十行，但是可读性提升了。
+写这个 `xmake` 脚本的目的和用C替代汇编的意义一样。
 
 ```bash
 git clone https://github.com/cloudwu/skynet.git
 cd skynet
-xmake # xmake会自动判断平台
+xmake # xmake会自动判断平台，目前仅测试了 linux 平台，原本支持linux, macosx, freebsd
 ```
 
-尽管有些变量是不需要写的，但是为了和原 `Makefile` 对比，还是写上了。
+- 尽管有些变量是不需要写的，但是为了和原 `Makefile` 对比，还是写上了。
+- 对比原项目，添加了`xmake.lua`，相对应的修改了`.gitignore`，还有`README.md`。
 
 ### 2. make
 For Linux, install autoconf first for jemalloc:

@@ -12,6 +12,7 @@
 .DS_Store
 .vscode
 
+# >>> xmake >>>
 /build
 .xmake
-.sym
+# << xmake <<<

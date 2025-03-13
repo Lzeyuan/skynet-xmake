@@ -11,17 +11,13 @@ local SKYNET_DEFINES = ""
 if is_plat("linux") then
     table.insert(SKYNET_LIBS, "dl")
     table.insert(SKYNET_LIBS, "rt")
-end
-
-if is_plat("macosx") then
+elseif is_plat("macosx") then
     table.insert(SKYNET_LIBS, "dl")
     EXPORT = ""
     SHARED = {"-fPIC","-dynamiclib","-Wl,-undefined,dynamic_lookup"}
     MALLOC_STATICLIB = ""
     SKYNET_DEFINES  = ""
-end
-
-if is_plat("freebsd") then
+elseif is_plat("freebsd") then
     table.insert(SKYNET_LIBS, "rt")
 end
 
@@ -33,14 +29,11 @@ end
 -- <<< platform <<<
 
 local PLAT = "linux"
-local third_part_deps = {"third_part::jemalloc", "third_part::lua"}
 local MAKE = "make"
 local CC = "gcc"
 local SKYNET_BUILD_PATH = "."
 
 local LUA_INC = "3rd/lua"
-local LUA_STATICLIB = "3rd/lua/liblua.a"
-local JEMALLOC_INC = "3rd/jemalloc/include/jemalloc"
 
 -- 这是个 c 项目
 set_toolchains("gcc")
@@ -50,7 +43,7 @@ set_symbols("debug")
 set_optimize("faster")
 set_warnings("all")
 add_includedirs(LUA_INC)
-add_cflags("")
+-- add_cflags("")
 
 target("skynet-main", function()
     set_kind("binary")
@@ -61,18 +54,18 @@ target("skynet-main", function()
     set_policy("build.across_targets_in_parallel", false)
     add_includedirs("skynet-src")
     add_syslinks(SKYNET_LIBS)
-    add_ldflags(EXPORT, SKYNET_DEFINES)
+    add_ldflags(EXPORT)
     add_cflags(SKYNET_DEFINES)
 
     set_targetdir(os.curdir())
     set_filename("skynet")
 
     add_files("skynet-src/*.c")
-    add_deps(third_part_deps)
-    add_deps(CSERVICE)
-    add_deps(LUA_CLIB)
+
+    add_deps("third_part::jemalloc", "third_part::lua")
 end)
 
+-- 3rd
 namespace ("third_part", function ()
     target("jemalloc", function()
         set_kind("object")
@@ -90,13 +83,13 @@ namespace ("third_part", function ()
         
         add_linkdirs("3rd/jemalloc/lib", {public = true})
         add_links("jemalloc_pic", {public = true})
-        add_includedirs(JEMALLOC_INC, {public = true})
+        add_includedirs("3rd/jemalloc/include/jemalloc", {public = true})
     end)
 
     target("lua", function()
         set_kind("phony")
         on_build(function (target) 
-            if not os.exists(LUA_STATICLIB) then
+            if not os.exists("3rd/lua/liblua.a") then
                 os.cd("3rd")
                 os.cd("lua")
                 -- make 'CC=gcc -std=gnu99' linux
@@ -110,16 +103,19 @@ namespace ("third_part", function ()
 end)
 
 -- cservices
-local CSERVICE = { "snlua", "logger", "gate", "harbor" }
-for _, name in ipairs(CSERVICE) do
-    target(name)
-        set_kind("shared")
-        set_prefixname("")
-        add_cflags("-fPIC","--shared")
-        set_targetdir("cservice")
-        add_includedirs("skynet-src", "3rd/lua")
-        add_files("service-src/service_" .. name .. ".c")
-end
+namespace ("cservice", function ()
+    local CSERVICE = { "snlua", "logger", "gate", "harbor" }
+    for _, name in ipairs(CSERVICE) do
+        target(name)
+            set_kind("shared")
+            set_prefixname("")
+            add_cflags(SHARED)
+            set_targetdir("cservice")
+            add_includedirs("skynet-src", LUA_INC)
+            add_files("service-src/service_" .. name .. ".c")
+    end
+end)
+
 
 -- luaclib
 namespace ("luaclib", function ()
@@ -127,20 +123,14 @@ namespace ("luaclib", function ()
     local TLS_LIB= ""
     local TLS_INC= ""
 
-    local LUA_CLIB = {
-        "skynet",
-        "client",
-        "bson", "md5" ,"sproto" ,"lpeg", 
-        TLS_MODULE
-    }
-
     set_targetdir("luaclib")
     -- lib***.so => ***.so
     set_prefixname("")
 
-    -- .so
+    -- 当前作用域下所有target编译成动态库
     set_kind("shared")
-
+    -- cflag和cc在全局配置过了
+    add_cflags(SHARED)
 
     target("skynet", function()
         add_includedirs("skynet-src", "service-src", "lualib-src")
@@ -181,6 +171,28 @@ namespace ("luaclib", function ()
         add_includedirs("3rd/lpeg")
         add_files("3rd/lpeg/*.c")
     end)
+end)
+
+task("update3rd", function () 
+    on_run(function ()
+        -- clean 3rd
+        local third_part_dirs = os.projectdir() .. "/3rd"
+        os.cd("3rd")
+        -- clean 3rd/jemalloc
+        print("===== clean jemalloc =====")
+        if os.exists("jemalloc/Makefile") then
+            os.cd("jemalloc")
+            os.exec(MAKE .. " clean")
+            os.rm("Makefile")
+        end
+        print("===== end clean jemalloc =====")
+        os.exec("git submodule update --init")
+    end)
+
+    set_menu {
+        usage = "xmake update3rd",
+        description = "更新第三方库",
+    }
 end)
 
 task("cleanall", function () 
